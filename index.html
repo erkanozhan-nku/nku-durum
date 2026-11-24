@@ -1,5 +1,6 @@
 <!doctype html>
-<!-- Surum: v1 | Tarih: 2026-11-24 20:48:01 UTC+3 | NKU sinif sunucusu - kampus disindan salt okunur durum goruntuleme.
+<!-- Surum: v2 | Tarih: 2026-11-24 23:44:30 UTC+3 | NKU sinif sunucusu - kampus disindan salt okunur durum goruntuleme.
+     v2: kisisel kod bu cihazda saklanir (kisa adres yeter), ana ekrana ekleme (Android dugme, iPhone yonerge), ust serit.
      Bu sayfa hicbir yere veri gondermez. durum.json dosyasini indirir ve adresteki kisisel kodla (#k=...) yalnizca
      o ogrencinin satirini tarayicida cozer (AES-256-GCM). -->
 <html lang="tr">
@@ -8,6 +9,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#8C1515">
+<meta name="apple-mobile-web-app-title" content="Durumum">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
 <title>Durumum — NKÜ Sınıf Sunucusu</title>
 <style>
 :root{ --bg:#f4f5f7; --card:#fff; --ink:#1d2327; --mut:#666; --line:#e2e4e7; --okbg:#d4edda; --okink:#155724; --err:#721c24; --errbg:#f8d7da; --acc:#0056b3; }
@@ -34,10 +39,18 @@ tr.off td{ color:var(--mut); background:rgba(127,127,127,.10); }
 .sum{ font-size:15px; margin:0 0 10px; } .sum strong{ font-size:18px; }
 .sum.low strong{ color:var(--err); }
 .mut{ color:var(--mut); }
+.top{ background:#8C1515; color:#fff; }
+.top-in{ max-width:580px; margin:0 auto; padding:10px 16px; font-family:"Source Serif 4","Source Serif Pro",Georgia,"Times New Roman",serif; font-size:19px; font-weight:700; line-height:1.2; }
+.top-in small{ display:block; font:400 11px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; opacity:.85; letter-spacing:.3px; }
+h1{ font-family:"Source Serif 4","Source Serif Pro",Georgia,"Times New Roman",serif; }
+.btn{ display:inline-block; padding:9px 16px; border:0; border-radius:8px; background:#8C1515; color:#fff; font-weight:600; font-size:14px; cursor:pointer; }
+.steps{ margin:6px 0 0; padding-left:20px; font-size:14px; } .steps li{ margin:3px 0; }
+.lnk{ color:var(--acc); font-size:12.5px; }
 .ro{ display:inline-block; font-size:12px; font-weight:700; background:rgba(127,127,127,.16); border-radius:99px; padding:2px 10px; }
 </style>
 </head>
 <body>
+<header class="top"><div class="top-in">Sınıf Sunucusu<small>TNKÜ · Bilgisayar Mühendisliği · kampüs dışı görüntüleme</small></div></header>
 <div class="wrap"><div id="app"><div class="card mut" style="text-align:center;">Yükleniyor…</div></div>
 <div class="note" style="text-align:center;">Bu sayfa yalnızca görüntüleme içindir. Yoklama vermek ve katsayı girmek için kampüs ağında sınıf sunucusunu kullanın.</div></div>
 <script>
@@ -52,7 +65,47 @@ tr.off td{ color:var(--mut); background:rgba(127,127,127,.10); }
   function hex(u) { var o = ''; for (var i = 0; i < u.length; i++) o += (u[i] < 16 ? '0' : '') + u[i].toString(16); return o; }
   function b64(s) { var bin = atob(s), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
 
+  // v2: cihaz turu, ana ekrana ekleme
+  var KEY = 'nku_durum_k', UA = navigator.userAgent || '';
+  var IOS = /iPhone|iPad|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var ANDROID = /Android/.test(UA);
+  var STANDALONE = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  var installEvt = null;
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installEvt = e; var b = document.getElementById('inst'); if (b) b.style.display = ''; });
+  if (!IOS) {   // iPhone'da manifest yok: "Ana Ekrana Ekle" adresi kisisel kodla birlikte saklasin
+    var ln = document.createElement('link'); ln.rel = 'manifest'; ln.href = 'manifest.json'; document.head.appendChild(ln);
+    if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }
+  }
+  function saved() { try { var v = localStorage.getItem(KEY) || ''; return /^[A-Za-z0-9_-]{22}$/.test(v) ? v : ''; } catch (e) { return ''; } }
+  function remember(c) { try { if (c) localStorage.setItem(KEY, c); else localStorage.removeItem(KEY); } catch (e) {} }
+  function saveCard() {
+    var h = '<div class="card"><h2>Bu sayfayı telefonunuza kaydedin</h2>';
+    if (STANDALONE) {
+      h += '<div class="who">Ana ekranınıza eklenmiş. Bağlantınız bu cihazda kayıtlı.</div>';
+    } else if (IOS) {
+      h += '<div class="who">iPhone / iPad (Safari):</div><ol class="steps"><li>Alttaki <strong>Paylaş</strong> simgesine dokunun (kare içinden çıkan ok).</li><li><strong>Ana Ekrana Ekle</strong>’yi seçin.</li></ol>';
+    } else if (ANDROID) {
+      h += '<button class="btn" id="inst" style="display:none;">Ana ekrana ekle</button><div class="who" style="margin-top:8px;">Düğme görünmüyorsa: sağ üstteki <strong>⋮</strong> menüsü → <strong>Ana ekrana ekle</strong>.</div>';
+    } else {
+      h += '<div class="who">Bu sayfayı yer imlerinize ekleyin (Ctrl+D).</div>';
+    }
+    h += '<div class="note">Bağlantınız bu cihazda hatırlanıyor; bir dahaki sefere bu sayfanın kısa adresini açmanız yeterli. Ortak kullanılan bir cihazdaysanız: <a href="#" class="lnk" id="forget">bu cihazdan kaldır</a>.</div></div>';
+    return h;
+  }
+  function wireSave() {
+    var b = document.getElementById('inst');
+    if (b) { if (installEvt) b.style.display = ''; b.addEventListener('click', function () { if (!installEvt) return; installEvt.prompt(); installEvt = null; b.style.display = 'none'; }); }
+    var f = document.getElementById('forget');
+    if (f) f.addEventListener('click', function (e) { e.preventDefault(); if (!confirm('Kişisel bağlantınız bu cihazdan silinsin mi?')) return; remember(null); location.replace(location.pathname); });
+  }
+
+  window.addEventListener('hashchange', function () { location.reload(); });   // acik sayfaya yeni baglanti yapistirilirsa
   var m = (location.hash || '').match(/(?:^#|&)k=([A-Za-z0-9_-]{22})(?:&|$)/);
+  var fromSaved = false;
+  if (!m && saved()) {
+    m = [null, saved()]; fromSaved = true;
+    try { history.replaceState(null, '', location.pathname + '#k=' + m[1]); } catch (e) {}
+  }
   if (!m) {
     msg('<strong>Kişisel bağlantı gerekli.</strong><br>Bu sayfa, sınıf sunucusunun size özel verdiği bağlantıyla açılır. Kampüs ağındayken sınıf sunucusundaki “Devam Durumum” ya da “Uygulama Performansı” sayfanızdan <em>Kampüs dışından görüntüleme bağlantım</em> kutusundaki bağlantıyı kopyalayın.');
     return;
@@ -83,7 +136,9 @@ tr.off td{ color:var(--mut); background:rgba(127,127,127,.10); }
       html += '</table><div class="note">✓ katıldınız · ✗ katılmadınız · “·” yoklama alınmadı · “–” tatil / vize / ders yok (hesaba girmez)</div></div>';
     });
     if (!(d.perf || []).length && !(d.att || []).length) html += '<div class="card mut">Henüz kayıtlı bir veriniz yok.</div>';
+    html += saveCard();
     app.innerHTML = html;
+    wireSave();
   }
 
   fetch('durum.json?t=' + Date.now(), { cache: 'no-store' })
@@ -92,6 +147,7 @@ tr.off td{ color:var(--mut); background:rgba(127,127,127,.10); }
       return sha('nku-durum-id|' + code).then(function (idb) {
         var row = doc.rows && doc.rows[hex(idb).slice(0, 24)];
         if (!row) {
+          if (fromSaved) remember(null);
           msg('<strong>Bu bağlantıya ait kayıt bulunamadı.</strong><br>Bağlantınız yenilenmiş olabilir ya da henüz kaydınız yok. Kampüs ağındayken sınıf sunucusundaki sayfanızdan güncel bağlantınızı alın.' + (doc.updated ? '<br><small>Dosyanın son güncellemesi: ' + esc(doc.updated) + '</small>' : ''));
           return;
         }
@@ -102,6 +158,7 @@ tr.off td{ color:var(--mut); background:rgba(127,127,127,.10); }
           return crypto.subtle.decrypt({ name: 'AES-GCM', iv: blob.slice(0, 12), additionalData: enc(AAD) }, key, blob.slice(12));
         }).then(function (pt) {
           var o = JSON.parse(new TextDecoder().decode(pt).trim());
+          remember(code);
           render(o.u, o.d, doc.updated);
         });
       });
