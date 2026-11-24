@@ -1,0 +1,115 @@
+<!doctype html>
+<!-- Surum: v1 | Tarih: 2026-11-24 20:48:01 UTC+3 | NKU sinif sunucusu - kampus disindan salt okunur durum goruntuleme.
+     Bu sayfa hicbir yere veri gondermez. durum.json dosyasini indirir ve adresteki kisisel kodla (#k=...) yalnizca
+     o ogrencinin satirini tarayicida cozer (AES-256-GCM). -->
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>Durumum — NKÜ Sınıf Sunucusu</title>
+<style>
+:root{ --bg:#f4f5f7; --card:#fff; --ink:#1d2327; --mut:#666; --line:#e2e4e7; --okbg:#d4edda; --okink:#155724; --err:#721c24; --errbg:#f8d7da; --acc:#0056b3; }
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#16181b; --card:#212429; --ink:#e8eaed; --mut:#a0a4a8; --line:#3a3f45; --okbg:#1f3a27; --okink:#b7e4c2; --err:#f5c2c7; --errbg:#4a2328; --acc:#6ea8fe; }
+}
+*{ box-sizing:border-box; }
+body{ margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+.wrap{ max-width:580px; margin:18px auto 28px; padding:0 16px; }
+.card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; box-shadow:0 2px 12px rgba(0,0,0,.06); margin-bottom:14px; }
+h1{ font-size:20px; margin:4px 0 6px; }
+h2{ font-size:16px; margin:0 0 10px; }
+.who{ font-size:13px; color:var(--mut); }
+.note{ font-size:12.5px; color:var(--mut); margin-top:8px; }
+.err{ background:var(--errbg); color:var(--err); padding:14px; border-radius:8px; }
+table{ width:100%; border-collapse:collapse; font-size:14px; }
+th,td{ padding:7px 6px; border-bottom:1px solid var(--line); text-align:left; }
+th{ font-size:12px; color:var(--mut); }
+td:first-child{ white-space:nowrap; }
+td.c, th.c{ text-align:center; width:52px; }
+tr.off td{ color:var(--mut); background:rgba(127,127,127,.10); }
+.yes{ color:var(--okink); background:var(--okbg); border-radius:6px; padding:1px 8px; font-weight:700; }
+.no{ color:var(--err); background:var(--errbg); border-radius:6px; padding:1px 8px; font-weight:700; }
+.sum{ font-size:15px; margin:0 0 10px; } .sum strong{ font-size:18px; }
+.sum.low strong{ color:var(--err); }
+.mut{ color:var(--mut); }
+.ro{ display:inline-block; font-size:12px; font-weight:700; background:rgba(127,127,127,.16); border-radius:99px; padding:2px 10px; }
+</style>
+</head>
+<body>
+<div class="wrap"><div id="app"><div class="card mut" style="text-align:center;">Yükleniyor…</div></div>
+<div class="note" style="text-align:center;">Bu sayfa yalnızca görüntüleme içindir. Yoklama vermek ve katsayı girmek için kampüs ağında sınıf sunucusunu kullanın.</div></div>
+<script>
+(function () {
+  'use strict';
+  var app = document.getElementById('app');
+  var AAD = 'nku-durum-v1';
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function msg(html) { app.innerHTML = '<div class="card"><div class="err">' + html + '</div></div>'; }
+  function enc(s) { return new TextEncoder().encode(s); }
+  function sha(s) { return crypto.subtle.digest('SHA-256', enc(s)).then(function (b) { return new Uint8Array(b); }); }
+  function hex(u) { var o = ''; for (var i = 0; i < u.length; i++) o += (u[i] < 16 ? '0' : '') + u[i].toString(16); return o; }
+  function b64(s) { var bin = atob(s), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+
+  var m = (location.hash || '').match(/(?:^#|&)k=([A-Za-z0-9_-]{22})(?:&|$)/);
+  if (!m) {
+    msg('<strong>Kişisel bağlantı gerekli.</strong><br>Bu sayfa, sınıf sunucusunun size özel verdiği bağlantıyla açılır. Kampüs ağındayken sınıf sunucusundaki “Devam Durumum” ya da “Uygulama Performansı” sayfanızdan <em>Kampüs dışından görüntüleme bağlantım</em> kutusundaki bağlantıyı kopyalayın.');
+    return;
+  }
+  if (!window.crypto || !crypto.subtle) { msg('Bu tarayıcı gerekli şifre çözme özelliğini desteklemiyor. Güncel bir tarayıcı kullanın.'); return; }
+  var code = m[1];
+
+  function render(u, d, fileUpdated) {
+    var thr = d.threshold || 70;
+    var html = '<div class="card"><div class="who">Öğrenci No: <strong>' + esc(d.no) + '</strong> · <span class="ro">yalnızca görüntüleme</span></div><h1>Durumum</h1>' +
+      '<div class="who">Son güncelleme: <strong>' + esc(fileUpdated || u) + '</strong>. Bu tarihten sonraki girişler bir sonraki güncellemede görünür.</div></div>';
+    (d.perf || []).forEach(function (h) {
+      html += '<div class="card"><h2>' + esc(h.course) + ' — Uygulama Performansı</h2><div class="sum">Toplam Katsayı: <strong>' + h.total + '</strong>' + (h.max ? ' <span class="mut">/ en fazla ' + h.max + '</span>' : '') + '</div><table><tr><th>Hafta</th><th>Tarih</th><th>Katsayı</th></tr>';
+      (h.items || []).forEach(function (it) {
+        var v = it.state === 'girildi' ? '<strong>' + it.coef + '</strong>' : it.state === 'girilmedi' ? '<span class="mut">✗ girilmedi (0)</span>' : it.state === 'vize' ? '<span class="mut">Vize</span>' : it.state === 'iptal' ? '<span class="mut">İptal' + (it.label ? ' · ' + esc(it.label) : '') + '</span>' : it.state === 'bugun' ? '<span class="mut">bugün</span>' : '<span class="mut">—</span>';
+        html += '<tr><td>' + it.week + '. Hafta</td><td>' + esc(it.date) + '</td><td>' + v + '</td></tr>';
+      });
+      html += '</table></div>';
+    });
+    var SYM = { 'var': '<span class="yes">✓</span>', 'supheli': '<span class="yes">✓</span>', 'yok': '<span class="no">✗</span>', 'alinmadi': '·', 'sayilmaz': '–' };
+    (d.att || []).forEach(function (c) {
+      var low = c.pct !== null && c.pct < thr;
+      html += '<div class="card"><h2>' + esc(c.course) + ' — Devam</h2><div class="sum' + (low ? ' low' : '') + '">Katılım: <strong>' + c.att + ' / ' + c.held + '</strong>' + (c.pct === null ? '' : ' · <strong>%' + c.pct + '</strong>') + (low ? ' — %' + thr + ' sınırının altında' : '') + '</div>' +
+        '<table><tr><th>Hafta</th><th>Tarih</th><th class="c">1. Blok</th><th class="c">2. Blok</th></tr>';
+      (c.weeks || []).forEach(function (w, i) {
+        html += '<tr' + (w.status ? ' class="off"' : '') + '><td>' + w.week + '. Hafta</td><td>' + esc(w.date_tr) + (w.status ? ' · ' + esc(w.label) : '') + '</td><td class="c">' + (SYM[c.cells[i * 2]] || '') + '</td><td class="c">' + (SYM[c.cells[i * 2 + 1]] || '') + '</td></tr>';
+      });
+      html += '</table><div class="note">✓ katıldınız · ✗ katılmadınız · “·” yoklama alınmadı · “–” tatil / vize / ders yok (hesaba girmez)</div></div>';
+    });
+    if (!(d.perf || []).length && !(d.att || []).length) html += '<div class="card mut">Henüz kayıtlı bir veriniz yok.</div>';
+    app.innerHTML = html;
+  }
+
+  fetch('durum.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw new Error('dosya'); return r.json(); })
+    .then(function (doc) {
+      return sha('nku-durum-id|' + code).then(function (idb) {
+        var row = doc.rows && doc.rows[hex(idb).slice(0, 24)];
+        if (!row) {
+          msg('<strong>Bu bağlantıya ait kayıt bulunamadı.</strong><br>Bağlantınız yenilenmiş olabilir ya da henüz kaydınız yok. Kampüs ağındayken sınıf sunucusundaki sayfanızdan güncel bağlantınızı alın.' + (doc.updated ? '<br><small>Dosyanın son güncellemesi: ' + esc(doc.updated) + '</small>' : ''));
+          return;
+        }
+        var blob = b64(row);
+        return sha('nku-durum-key|' + code).then(function (kb) {
+          return crypto.subtle.importKey('raw', kb, { name: 'AES-GCM' }, false, ['decrypt']);
+        }).then(function (key) {
+          return crypto.subtle.decrypt({ name: 'AES-GCM', iv: blob.slice(0, 12), additionalData: enc(AAD) }, key, blob.slice(12));
+        }).then(function (pt) {
+          var o = JSON.parse(new TextDecoder().decode(pt).trim());
+          render(o.u, o.d, doc.updated);
+        });
+      });
+    })
+    .catch(function (e) {
+      msg(e && e.message === 'dosya' ? 'Durum dosyası henüz yayınlanmamış. Daha sonra yeniden deneyin.' : 'Veri açılamadı. Bağlantınızı kontrol edin; sorun sürerse kampüste güncel bağlantınızı alın.');
+    });
+})();
+</script>
+</body>
+</html>
